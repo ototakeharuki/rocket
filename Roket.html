@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>最終版ロケットシミュレーター</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body { font-family: sans-serif; margin: 30px; background: #f5f5f5; }
+.box { background: white; padding: 20px; margin: 20px 0; border-radius: 10px; }
+input { margin: 5px; padding: 5px; }
+button { padding: 10px; }
+</style>
+</head>
+
+<body>
+
+<h1>🚀 最終版ロケットシミュレーター</h1>
+
+<div class="box">
+<h2>① 入力（1段目）</h2>
+推力 F (N): <input id="F1" value="20000"><br>
+初期質量 M (kg): <input id="M1" value="1000"><br>
+燃料消費 r (kg/s): <input id="r1" value="5"><br>
+燃焼時間 t (s): <input id="t1" value="60"><br>
+</div>
+
+<div class="box">
+<h2>② 入力（2段目）</h2>
+推力 F (N): <input id="F2" value="10000"><br>
+燃料消費 r (kg/s): <input id="r2" value="3"><br>
+燃焼時間 t (s): <input id="t2" value="50"><br>
+</div>
+
+<div class="box">
+<h2>③ 共通</h2>
+初期角度 θ (度): <input id="theta" value="90"><br>
+空気抵抗 k: <input id="k" value="0.00005"><br>
+重力 g: <input id="g" value="9.8"><br>
+
+<button onclick="simulate()">シミュレーション</button>
+</div>
+
+<div class="box">
+<h2>④ 結果</h2>
+<p id="result"></p>
+</div>
+
+<div class="box">
+<h2>⑤ 軌道</h2>
+<canvas id="chart"></canvas>
+</div>
+
+<script>
+let chart;
+
+function simulate() {
+
+let F1_input = document.getElementById("F1");
+let M1_input = document.getElementById("M1");
+let r1_input = document.getElementById("r1");
+let t1_input = document.getElementById("t1");
+
+let F2_input = document.getElementById("F2");
+let r2_input = document.getElementById("r2");
+let t2_input = document.getElementById("t2");
+
+let theta_input = document.getElementById("theta");
+let k_input = document.getElementById("k");
+let g_input = document.getElementById("g");
+
+let F1 = parseFloat(F1_input.value);
+let M = parseFloat(M1_input.value);
+let r1 = parseFloat(r1_input.value);
+let t1 = parseFloat(t1_input.value);
+
+let F2 = parseFloat(F2_input.value);
+let r2 = parseFloat(r2_input.value);
+let t2 = parseFloat(t2_input.value);
+
+let theta = parseFloat(theta_input.value) * Math.PI/180;
+let k = parseFloat(k_input.value);
+let g = parseFloat(g_input.value);
+
+let x = 0, y = 0;
+let vx = 0, vy = 0;
+
+let dt = 0.1;
+let data = [];
+
+function step(F, r, burnTime) {
+  for (let t=0; t<burnTime; t+=dt) {
+
+    let v = Math.sqrt(vxvx + vyvy);
+
+    let drag = k * v * v;
+
+    let ax = (F/M)Math.cos(theta) - drag(vx/v);
+    let ay = (F/M)Math.sin(theta) - g - drag(vy/v);
+
+    vx += ax * dt;
+    vy += ay * dt;
+
+    x += vx * dt;
+    y += vy * dt;
+
+    M -= r * dt;
+
+    // 重力ターン（徐々に水平へ）
+    theta = 0.999;
+
+    if (y < 0) break;
+
+    data.push({x:x, y:y});
+  }
+}
+
+// 1段目
+step(F1, r1, t1);
+
+// 2段目（軽くなる）
+step(F2, r2, t2);
+
+// 燃焼後（弾道）
+while (y > 0) {
+  let v = Math.sqrt(vxvx + vyvy);
+  let drag = k * v * v;
+
+  let ax = - drag(vx/v);
+  let ay = - g - drag*(vy/v);
+
+  vx += ax * dt;
+  vy += ay * dt;
+
+  x += vx * dt;
+  y += vy * dt;
+
+  if (y >= 0) data.push({x:x, y:y});
+}
+
+document.getElementById("result").innerHTML =
+"飛距離: " + x.toFixed(0) + " m<br>" +
+"最大高度: " + Math.max(...data.map(p=>p.y)).toFixed(0) + " m";
+
+if (chart) chart.destroy();
+
+chart = new Chart(document.getElementById("chart"), {
+  type: 'line',
+  data: {
+    datasets: [{
+      label: '軌道',
+      data: data,
+      parsing: false
+    }]
+  },
+  options: {
+    scales: {
+      x: { type:'linear', title:{display:true,text:'距離'} },
+      y: { title:{display:true,text:'高度'} }
+    }
+  }
+});
+}
+</script>
+
+</body>
+</html>
